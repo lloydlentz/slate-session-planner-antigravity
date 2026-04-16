@@ -254,47 +254,71 @@ h1, h2, h3, h4, h5, h6 {
     display: inline-block;
 }
 
-/* Sessions Grid */
-.sessions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
+/* Sessions Table Layout */
+.sessions-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-/* Session Card */
-.session-card {
+.session-row-card {
     background: var(--bg-glass);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    box-shadow: var(--shadow-sm);
     transition: var(--transition);
-    display: flex;
-    flex-direction: column;
     position: relative;
     overflow: hidden;
 }
-.session-card:hover {
-    transform: translateY(-4px);
+.session-row-card:hover {
     border-color: rgba(59, 130, 246, 0.4);
-    box-shadow: var(--shadow-glass);
+    box-shadow: var(--shadow-md);
 }
-.session-card::before {
+.session-row-card::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
     background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple));
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
-.session-header {
-    margin-bottom: 1rem;
+.session-row-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
 }
+
+.session-expand-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    width: 1.75rem;
+    height: 1.75rem;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.session-row-summary {
+    flex: 1 1 auto;
+    min-width: 180px;
+}
+
+.session-title.condensed {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.session-meta.condensed {
+    margin-bottom: 0;
+}
+
 .session-title {
     font-size: 1.25rem;
     margin-bottom: 0.5rem;
@@ -325,49 +349,43 @@ h1, h2, h3, h4, h5, h6 {
 .session-description {
     font-size: 0.9375rem;
     color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-    flex-grow: 1;
+    margin-bottom: 1rem;
 }
 
-/* Actions area */
-.session-actions {
-    margin-top: auto;
+.session-row-details {
+    margin-top: 0.75rem;
     border-top: 1px dashed var(--border-color);
-    padding-top: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    padding-top: 0.75rem;
 }
 
 /* Team Toggles */
-.team-toggles {
+.team-inline-controls {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 0.4rem;
+    margin-left: auto;
+    min-width: 270px;
 }
-.member-row {
+.member-inline-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-.member-row span {
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-.toggle-group-small {
-    display: flex;
+    justify-content: space-between;
     gap: 0.5rem;
+}
+.member-inline-name {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.toggle-group-inline {
+    display: flex;
+    gap: 0.35rem;
 }
 .btn-toggle-small {
     background: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    padding: 0.25rem 0.5rem;
+    padding: 0.2rem 0.45rem;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.75rem;
@@ -541,5 +559,13 @@ textarea.form-control {
     .controls-bar {
         flex-direction: column;
         align-items: flex-start;
+    }
+    .session-row-main {
+        flex-direction: column;
+    }
+    .team-inline-controls {
+        width: 100%;
+        min-width: 0;
+        margin-left: 0;
     }
 }

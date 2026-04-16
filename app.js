@@ -11,6 +11,7 @@ let state = {
 let sessionsData = [];
 let currentTab = 'sessions'; // 'sessions' or 'schedule'
 let currentTheme = localStorage.getItem('slateTheme') || 'dark';
+let expandedSessions = new Set();
 
 async function init() {
     initTheme();
@@ -165,26 +166,29 @@ function renderSessions() {
     types.forEach(type => {
         html += `<div class="type-group">
             <h2 class="type-header">${escapeHTML(type)}</h2>
-            <div class="sessions-grid">`;
+            <div class="sessions-table">`;
         
         grouped[type].forEach(session => {
             const pref = getPref(session.guid);
-            
-            // Build team member checkboxes
-            let teamHtml = '<div class="team-toggles">';
+            const isExpanded = expandedSessions.has(session.guid);
+            const guidArg = escapeJSString(session.guid);
+
+            // Build compact team controls
+            let teamHtml = '<div class="team-inline-controls">';
             state.settings.teamMembers.forEach(member => {
                 const memPref = pref.team[member] || { interesting: false, going: false };
+                const memberArg = escapeJSString(member);
                 teamHtml += `
-                    <div class="member-row">
-                        <span>${escapeHTML(member)}</span>
-                        <div class="toggle-group-small">
+                    <div class="member-inline-row">
+                        <span class="member-inline-name">${escapeHTML(member)}</span>
+                        <div class="toggle-group-inline">
                             <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}">
-                                <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${session.guid}', '${escapeHTML(member)}', 'interesting')">
-                                ⭐ Interested
+                                <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${guidArg}', '${memberArg}', 'interesting')">
+                                ⭐
                             </label>
                             <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}">
-                                <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${session.guid}', '${escapeHTML(member)}', 'going')">
-                                ✅ Going
+                                <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${guidArg}', '${memberArg}', 'going')">
+                                ✅
                             </label>
                         </div>
                     </div>
@@ -195,26 +199,30 @@ function renderSessions() {
             const actualDate = getActualDate(session.Day, session.Date);
 
             html += `
-                <div class="session-card" data-guid="${session.guid}">
-                    <div class="session-header">
-                        <h3 class="session-title">${escapeHTML(session.Title || 'Untitled')}</h3>
-                        <div class="session-meta">
-                            <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
-                            ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
+                <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${escapeHTML(session.guid)}">
+                    <div class="session-row-main">
+                        <button class="session-expand-btn" onclick="toggleSessionExpand('${guidArg}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="Toggle details for ${escapeHTML(session.Title || 'Untitled')}">
+                            ${isExpanded ? '▼' : '▶'}
+                        </button>
+                        <div class="session-row-summary">
+                            <h3 class="session-title condensed">${escapeHTML(session.Title || 'Untitled')}</h3>
+                            <div class="session-meta condensed">
+                                <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
+                                ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
+                            </div>
                         </div>
-                        ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
-                    </div>
-                    <div class="session-description">
-                        ${escapeHTML(session.Description || 'No description available.').trim()}
-                    </div>
-                    
-                    <div class="session-actions">
                         ${teamHtml}
+                    </div>
+                    <div class="session-row-details ${isExpanded ? '' : 'hidden'}">
+                        ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
+                        <div class="session-description">
+                            ${escapeHTML(session.Description || 'No description available.').trim()}
+                        </div>
                         <div class="form-group">
-                            <label for="notes-${session.guid}">Team Notes</label>
+                            <label for="notes-${escapeHTML(session.guid)}">Team Notes</label>
                             <textarea id="notes-${session.guid}" class="form-control" 
                                 placeholder="Thoughts? Questions?" 
-                                oninput="updateNotes('${session.guid}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
+                                oninput="updateNotes('${guidArg}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
                         </div>
                     </div>
                 </div>
@@ -226,6 +234,15 @@ function renderSessions() {
     
     container.innerHTML = html;
 }
+
+window.toggleSessionExpand = function(guid) {
+    if (expandedSessions.has(guid)) {
+        expandedSessions.delete(guid);
+    } else {
+        expandedSessions.add(guid);
+    }
+    renderSessions();
+};
 
 // ---------------------------
 // SCHEDULE VIEW
@@ -453,6 +470,13 @@ function escapeHTML(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function escapeJSString(str) {
+    if (!str) return '';
+    return str.toString()
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
 }
 
 document.addEventListener('DOMContentLoaded', init);
