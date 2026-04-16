@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slate Conference Planner</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <h1>Slate Conference Planner</h1>
+            <p class="subtitle">Plan attendance, assign members, and leave notes for your team.</p>
+        </div>
+        <div class="header-actions">
+            <!-- Settings toggle -->
+            <button class="btn btn-primary" onclick="toggleSettings()">⚙️ Team Settings</button>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <div id="settings-panel" class="settings-panel hidden">
+            <div class="settings-content">
+                <h3>Team Settings</h3>
+                <p>Enter team members (one per line). Default is Lloyd, Kathryn, Tom.</p>
+                <textarea id="team-members-input" class="form-control" rows="4"></textarea>
+                <div class="settings-actions">
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                    <button class="btn" onclick="toggleSettings()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-bar">
+            <div class="tabs">
+                <button class="tab active" id="tab-sessions" onclick="switchTab('sessions')">All Sessions</button>
+                <button class="tab" id="tab-schedule" onclick="switchTab('schedule')">Schedule</button>
+            </div>
+            <div class="filters" id="sessions-filters">
+                <div class="filter-group">
+                    <label>Team Member:</label>
+                    <select id="filter-member" class="form-control-inline" onchange="renderView()">
+                        <option value="all_sessions">Everyone (All Sessions)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Status:</label>
+                    <select id="filter-status" class="form-control-inline" onchange="renderView()">
+                        <option value="all">Any Status</option>
+                        <option value="going">Going</option>
+                        <option value="interesting">Interested</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <p>Loading sessions...</p>
+        </div>
+
+        <div id="sessions-container" class="sessions-container">
+            <!-- Sessions grid injected here -->
+        </div>
+
+        <div id="schedule-container" class="schedule-container hidden">
+            <!-- Schedule grid injected here -->
+        </div>
+    </main>
+
+    <!-- JS -->
+    <script src="app.js"></script>
+</body>
+</html>
