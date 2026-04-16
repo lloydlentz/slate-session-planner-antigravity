@@ -1,5 +1,7 @@
 # Slate Conference Planner
 
+## https://lloydlentz.github.io/slate-session-planner-antigravity
+
 A simple, client-side web application designed to help teams collectively review, sort, and organize their schedules for an upcoming conference. It fetches a raw JSON feed endpoint and produces an interactive, highly stylistic dashboard. Best of all, no backend is needed—all user preferences and team assignments are efficiently persisted to your browser via `localStorage`.
 
 ## Features
