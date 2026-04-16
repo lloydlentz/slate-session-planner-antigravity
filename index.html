@@ -43,6 +43,18 @@
             </div>
             <div class="filters" id="sessions-filters">
                 <div class="filter-group">
+                    <label>Day:</label>
+                    <select id="filter-day" class="form-control-inline" onchange="renderView()">
+                        <option value="all">All Days</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Type:</label>
+                    <select id="filter-type" class="form-control-inline" onchange="renderView()">
+                        <option value="all">All Types</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label>Team Member:</label>
                     <select id="filter-member" class="form-control-inline" onchange="renderView()">
                         <option value="all_sessions">Everyone (All Sessions)</option>

@@ -13,8 +13,8 @@ let currentTab = 'sessions'; // 'sessions' or 'schedule'
 
 async function init() {
     loadState();
-    updateFilterDropdowns();
     await fetchSessions();
+    updateFilterDropdowns();
     renderView();
 }
 
@@ -93,8 +93,22 @@ window.renderView = function() {
 function getFilteredSessions() {
     const memberFilter = document.getElementById('filter-member').value; 
     const statusFilter = document.getElementById('filter-status').value; 
+    const dayFilter = document.getElementById('filter-day').value;
+    const typeFilter = document.getElementById('filter-type').value;
 
     return sessionsData.filter(session => {
+        // Day filter
+        if (dayFilter && dayFilter !== 'all') {
+            const sDay = session.Day || 'Day 1';
+            if (sDay !== dayFilter) return false;
+        }
+
+        // Type filter
+        if (typeFilter && typeFilter !== 'all') {
+            const sType = session.Type || 'Other Sessions';
+            if (sType !== typeFilter) return false;
+        }
+
         const pref = state.preferences[session.guid] || { team: {} };
 
         // Helper to check what a specific member has saved
@@ -247,8 +261,10 @@ function renderSchedule() {
         html += `<div class="day-col">
             <h3>${escapeHTML(dayData.name)}</h3>`;
             
-        // Basic alphabetical sort for times (works well for padded numbers like 08:00 AM, 09:00 AM)
-        const times = Object.keys(dayData.slots).sort();
+        // Smart sort for times based on AM/PM (e.g. 10:00 AM before 12:00 PM before 02:00 PM)
+        const times = Object.keys(dayData.slots).sort((a, b) => {
+            return parseTimeToMinutes(a) - parseTimeToMinutes(b);
+        });
         
         times.forEach(time => {
             html += `<div class="time-slot">
@@ -356,6 +372,52 @@ function updateFilterDropdowns() {
     if (currentVal && select.querySelector(`option[value="${currentVal.replace(/"/g, '\\"')}"]`)) {
         select.value = currentVal;
     }
+
+    // Days dropdown
+    const daysSelect = document.getElementById('filter-day');
+    if (daysSelect && sessionsData.length > 0) {
+        const uniqueDays = [...new Set(sessionsData.map(s => s.Day || 'Day 1'))].sort();
+        let daysOpts = '<option value="all">All Days</option>';
+        uniqueDays.forEach(d => {
+            daysOpts += `<option value="${escapeHTML(d)}">${escapeHTML(getActualDate(d))}</option>`;
+        });
+        const currentDay = daysSelect.value;
+        daysSelect.innerHTML = daysOpts;
+        if (currentDay && daysSelect.querySelector(`option[value="${currentDay.replace(/"/g, '\\"')}"]`)) {
+            daysSelect.value = currentDay;
+        }
+    }
+
+    // Types dropdown
+    const typeSelect = document.getElementById('filter-type');
+    if (typeSelect && sessionsData.length > 0) {
+        const uniqueTypes = [...new Set(sessionsData.map(s => s.Type || 'Other Sessions'))].sort();
+        let typeOpts = '<option value="all">All Types</option>';
+        uniqueTypes.forEach(t => {
+            typeOpts += `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`;
+        });
+        const currentType = typeSelect.value;
+        typeSelect.innerHTML = typeOpts;
+        if (currentType && typeSelect.querySelector(`option[value="${currentType.replace(/"/g, '\\"')}"]`)) {
+            typeSelect.value = currentType;
+        }
+    }
+}
+
+// Helper for smart sorting times
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return 0;
+    
+    let hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    const ampm = match[3].toUpperCase();
+
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    return hours * 60 + mins;
 }
 
 // Map "Day 1", "Day 2", etc., to specific dates if not provided by feed
