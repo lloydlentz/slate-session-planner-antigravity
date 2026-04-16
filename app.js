@@ -5,12 +5,16 @@ let state = {
     settings: {
         teamMembers: ['Lloyd', 'Kathryn', 'Tom']
     },
-    preferences: {} 
+    preferences: {},
+    ui: {
+        expandedSessions: []
+    }
 };
 
 let sessionsData = [];
 let currentTab = 'sessions'; // 'sessions' or 'schedule'
 let currentTheme = localStorage.getItem('slateTheme') || 'dark';
+let expandedSessions = new Set();
 
 async function init() {
     initTheme();
@@ -32,6 +36,9 @@ function loadState() {
                 // handle legacy migration
                 state.preferences = parsed; 
             }
+            if (parsed.ui) {
+                state.ui = parsed.ui;
+            }
         } catch (e) { console.error("Failed to parse saved state", e); }
     }
     
@@ -41,6 +48,14 @@ function loadState() {
             state.preferences[guid].team = {};
         }
     }
+
+    if (!state.ui) {
+        state.ui = { expandedSessions: [] };
+    }
+    if (!Array.isArray(state.ui.expandedSessions)) {
+        state.ui.expandedSessions = [];
+    }
+    expandedSessions = new Set(state.ui.expandedSessions);
 }
 
 function saveState() {
@@ -165,26 +180,32 @@ function renderSessions() {
     types.forEach(type => {
         html += `<div class="type-group">
             <h2 class="type-header">${escapeHTML(type)}</h2>
-            <div class="sessions-grid">`;
+            <div class="sessions-table">`;
         
         grouped[type].forEach(session => {
             const pref = getPref(session.guid);
-            
-            // Build team member checkboxes
-            let teamHtml = '<div class="team-toggles">';
+            const isExpanded = expandedSessions.has(session.guid);
+            const jsEscapedGuid = escapeJSString(session.guid);
+            const safeGuid = escapeHTML(session.guid);
+            const safeTitle = escapeHTML(session.Title || 'Untitled');
+            const expandAriaLabel = escapeHTML(`Toggle details for ${session.Title || 'Untitled'}`);
+
+            // Build compact team controls
+            let teamHtml = '<div class="team-inline-controls">';
             state.settings.teamMembers.forEach(member => {
                 const memPref = pref.team[member] || { interesting: false, going: false };
+                const jsEscapedMember = escapeJSString(member);
                 teamHtml += `
-                    <div class="member-row">
-                        <span>${escapeHTML(member)}</span>
-                        <div class="toggle-group-small">
-                            <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}">
-                                <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${session.guid}', '${escapeHTML(member)}', 'interesting')">
-                                ⭐ Interested
+                    <div class="member-inline-row">
+                        <span class="member-inline-name">${escapeHTML(member)}</span>
+                        <div class="toggle-group-inline">
+                            <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}" title="Toggle interested for ${escapeHTML(member)}">
+                                <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'interesting')">
+                                ⭐
                             </label>
-                            <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}">
-                                <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${session.guid}', '${escapeHTML(member)}', 'going')">
-                                ✅ Going
+                            <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}" title="Toggle going for ${escapeHTML(member)}">
+                                <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'going')">
+                                ✅
                             </label>
                         </div>
                     </div>
@@ -195,26 +216,30 @@ function renderSessions() {
             const actualDate = getActualDate(session.Day, session.Date);
 
             html += `
-                <div class="session-card" data-guid="${session.guid}">
-                    <div class="session-header">
-                        <h3 class="session-title">${escapeHTML(session.Title || 'Untitled')}</h3>
-                        <div class="session-meta">
-                            <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
-                            ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
+                <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${safeGuid}">
+                    <div class="session-row-main">
+                        <button class="session-expand-btn" onclick="toggleSessionExpand('${jsEscapedGuid}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${expandAriaLabel}">
+                            ${isExpanded ? '▼' : '▶'}
+                        </button>
+                        <div class="session-row-summary">
+                            <h3 class="session-title condensed">${safeTitle}</h3>
+                            <div class="session-meta condensed">
+                                <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
+                                ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
+                            </div>
                         </div>
-                        ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
-                    </div>
-                    <div class="session-description">
-                        ${escapeHTML(session.Description || 'No description available.').trim()}
-                    </div>
-                    
-                    <div class="session-actions">
                         ${teamHtml}
+                    </div>
+                    <div class="session-row-details ${isExpanded ? '' : 'hidden'}">
+                        ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
+                        <div class="session-description">
+                            ${escapeHTML(session.Description || 'No description available.').trim()}
+                        </div>
                         <div class="form-group">
-                            <label for="notes-${session.guid}">Team Notes</label>
-                            <textarea id="notes-${session.guid}" class="form-control" 
+                            <label for="notes-${safeGuid}">Team Notes</label>
+                            <textarea id="notes-${safeGuid}" class="form-control" 
                                 placeholder="Thoughts? Questions?" 
-                                oninput="updateNotes('${session.guid}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
+                                oninput="updateNotes('${jsEscapedGuid}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
                         </div>
                     </div>
                 </div>
@@ -226,6 +251,17 @@ function renderSessions() {
     
     container.innerHTML = html;
 }
+
+window.toggleSessionExpand = function(guid) {
+    if (expandedSessions.has(guid)) {
+        expandedSessions.delete(guid);
+    } else {
+        expandedSessions.add(guid);
+    }
+    state.ui.expandedSessions = Array.from(expandedSessions);
+    saveState();
+    renderSessions();
+};
 
 // ---------------------------
 // SCHEDULE VIEW
@@ -453,6 +489,17 @@ function escapeHTML(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function escapeJSString(str) {
+    if (!str) return '';
+    return str.toString()
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "\\'");
 }
 
 document.addEventListener('DOMContentLoaded', init);
