@@ -172,6 +172,9 @@ function renderSessions() {
             const pref = getPref(session.guid);
             const isExpanded = expandedSessions.has(session.guid);
             const guidArg = escapeJSString(session.guid);
+            const safeGuid = escapeHTML(session.guid);
+            const safeTitle = escapeHTML(session.Title || 'Untitled');
+            const expandAriaLabel = escapeHTML(`Toggle details for ${session.Title || 'Untitled'}`);
 
             // Build compact team controls
             let teamHtml = '<div class="team-inline-controls">';
@@ -182,11 +185,11 @@ function renderSessions() {
                     <div class="member-inline-row">
                         <span class="member-inline-name">${escapeHTML(member)}</span>
                         <div class="toggle-group-inline">
-                            <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}">
+                            <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}" title="Toggle interested for ${escapeHTML(member)}">
                                 <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${guidArg}', '${memberArg}', 'interesting')">
                                 ⭐
                             </label>
-                            <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}">
+                            <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}" title="Toggle going for ${escapeHTML(member)}">
                                 <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${guidArg}', '${memberArg}', 'going')">
                                 ✅
                             </label>
@@ -199,13 +202,13 @@ function renderSessions() {
             const actualDate = getActualDate(session.Day, session.Date);
 
             html += `
-                <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${escapeHTML(session.guid)}">
+                <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${safeGuid}">
                     <div class="session-row-main">
-                        <button class="session-expand-btn" onclick="toggleSessionExpand('${guidArg}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="Toggle details for ${escapeHTML(session.Title || 'Untitled')}">
+                        <button class="session-expand-btn" onclick="toggleSessionExpand('${guidArg}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${expandAriaLabel}">
                             ${isExpanded ? '▼' : '▶'}
                         </button>
                         <div class="session-row-summary">
-                            <h3 class="session-title condensed">${escapeHTML(session.Title || 'Untitled')}</h3>
+                            <h3 class="session-title condensed">${safeTitle}</h3>
                             <div class="session-meta condensed">
                                 <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
                                 ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
@@ -219,8 +222,8 @@ function renderSessions() {
                             ${escapeHTML(session.Description || 'No description available.').trim()}
                         </div>
                         <div class="form-group">
-                            <label for="notes-${escapeHTML(session.guid)}">Team Notes</label>
-                            <textarea id="notes-${session.guid}" class="form-control" 
+                            <label for="notes-${safeGuid}">Team Notes</label>
+                            <textarea id="notes-${safeGuid}" class="form-control" 
                                 placeholder="Thoughts? Questions?" 
                                 oninput="updateNotes('${guidArg}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
                         </div>
