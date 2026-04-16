@@ -10,8 +10,10 @@ let state = {
 
 let sessionsData = [];
 let currentTab = 'sessions'; // 'sessions' or 'schedule'
+let currentTheme = localStorage.getItem('slateTheme') || 'dark';
 
 async function init() {
+    initTheme();
     loadState();
     await fetchSessions();
     updateFilterDropdowns();
@@ -318,6 +320,20 @@ window.switchTab = function(tab) {
     document.getElementById('tab-schedule').classList.toggle('active', tab === 'schedule');
     renderView();
 };
+
+window.toggleTheme = function() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('slateTheme', currentTheme);
+    initTheme();
+};
+
+function initTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    const btn = document.getElementById('theme-toggle');
+    if (btn) {
+        btn.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+    }
+}
 
 window.toggleMemberPref = function(guid, member, type) {
     const pref = getPref(guid);
