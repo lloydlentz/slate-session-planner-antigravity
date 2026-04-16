@@ -3,7 +3,7 @@ const STORAGE_KEY = 'slateSessionPlannerData';
 
 let state = {
     settings: {
-        teamMembers: ['Lloyd', 'Kathryn', 'Tom']
+        teamMembers: ['Lloyd', 'Kathryn', 'Austin']
     },
     preferences: {},
     ui: {
@@ -402,7 +402,7 @@ window.saveSettings = function() {
     if (names.length) {
         state.settings.teamMembers = names;
     } else {
-        state.settings.teamMembers = ['Lloyd', 'Kathryn', 'Tom']; // default fallback
+        state.settings.teamMembers = ['Lloyd', 'Kathryn', 'Austin']; // default fallback
     }
     saveState();
     updateFilterDropdowns();
