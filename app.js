@@ -4,16 +4,17 @@ import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebase
 const ENDPOINT_URL = "https://slate-partners.technolutions.net/manage/query/run?id=8b7142c2-6c70-4109-9eeb-74d2494ba7c8&cmd=service&output=json&h=b0203357-4804-4c5d-8213-9e376263af44";
 const STORAGE_KEY = 'slateSessionPlannerData';
 
-// ====== FIREBASE CONFIGURATION ======
-// Fill in your Firebase config here after creating a Firebase project.
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+    apiKey: "AIzaSyC4E8FmQJCxowSzkuaKQYk5GCbC7ZtCv7o",
+    authDomain: "slate-planner-sync.firebaseapp.com",
+    databaseURL: "https://slate-planner-sync-default-rtdb.firebaseio.com",
+    projectId: "slate-planner-sync",
+    storageBucket: "slate-planner-sync.firebasestorage.app",
+    messagingSenderId: "196444047193",
+    appId: "1:196444047193:web:9905e8481c182a240fee48",
+    measurementId: "G-FM89YFQ3SP"
 };
 
 const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
@@ -59,14 +60,14 @@ function loadState() {
                 state.preferences = parsed.preferences;
             } else if (Object.keys(parsed).length && !parsed.settings) {
                 // handle legacy migration
-                state.preferences = parsed; 
+                state.preferences = parsed;
             }
             if (parsed.ui) {
                 state.ui = parsed.ui;
             }
         } catch (e) { console.error("Failed to parse saved state", e); }
     }
-    
+
     // Ensure all team preferences are structured properly
     for (const guid in state.preferences) {
         if (!state.preferences[guid].team) {
@@ -101,7 +102,7 @@ let unsubscribeFromTeam = null;
 function connectToTeamCode() {
     const code = state.settings.teamCode;
     const syncStatus = document.getElementById('sync-status');
-    
+
     if (unsubscribeFromTeam) {
         unsubscribeFromTeam();
         unsubscribeFromTeam = null;
@@ -109,16 +110,16 @@ function connectToTeamCode() {
 
     if (!code || !isFirebaseConfigured) {
         if (!isFirebaseConfigured && code) {
-             console.warn("Firebase not configured. Using local storage only.");
+            console.warn("Firebase not configured. Using local storage only.");
         }
         syncStatus.className = 'sync-indicator offline';
         syncStatus.innerHTML = '☁️ Offline';
         return;
     }
-    
+
     syncStatus.className = 'sync-indicator online';
     syncStatus.innerHTML = `☁️ Synced: ${escapeHTML(code)}`;
-    
+
     const dbRef = ref(database, `teams/${code}/preferences`);
     unsubscribeFromTeam = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
@@ -160,7 +161,7 @@ async function fetchSessions() {
 // ---------------------------
 // VIEW ROUTER
 // ---------------------------
-window.renderView = function() {
+window.renderView = function () {
     if (currentTab === 'sessions') {
         document.getElementById('sessions-container').classList.remove('hidden');
         document.getElementById('schedule-container').classList.add('hidden');
@@ -176,8 +177,8 @@ window.renderView = function() {
 // FILTERING
 // ---------------------------
 function getFilteredSessions() {
-    const memberFilter = document.getElementById('filter-member').value; 
-    const statusFilter = document.getElementById('filter-status').value; 
+    const memberFilter = document.getElementById('filter-member').value;
+    const statusFilter = document.getElementById('filter-status').value;
     const dayFilter = document.getElementById('filter-day').value;
     const typeFilter = document.getElementById('filter-type').value;
 
@@ -212,7 +213,7 @@ function getFilteredSessions() {
             } else {
                 return Object.keys(pref.team).some(m => checkMember(m));
             }
-        } 
+        }
         else if (memberFilter === 'any_saved') {
             return Object.keys(pref.team).some(m => checkMember(m));
         }
@@ -228,7 +229,7 @@ function getFilteredSessions() {
 function renderSessions() {
     const container = document.getElementById('sessions-container');
     const filtered = getFilteredSessions();
-    
+
     if (!filtered.length) {
         container.innerHTML = '<p class="text-secondary" style="padding: 2rem;">No sessions match your filter.</p>';
         return;
@@ -332,15 +333,15 @@ function renderSessions() {
             </div>
         `;
     });
-    
+
     if (currentDay !== null) {
         html += `</div></div>`; // Close the last day-group
     }
-    
+
     container.innerHTML = html;
 }
 
-window.toggleSessionExpand = function(guid) {
+window.toggleSessionExpand = function (guid) {
     if (expandedSessions.has(guid)) {
         expandedSessions.delete(guid);
     } else {
@@ -372,7 +373,7 @@ function renderSchedule() {
         let d = session.Day || 'Day 1';
         // Add dynamic fallbacks or normalizations if the API doesn't use Day 1/2/3
         if (!daysMap[d]) daysMap[d] = { name: d, slots: {} };
-        
+
         const t = session.Time || 'TBA';
         if (!daysMap[d].slots[t]) daysMap[d].slots[t] = [];
         daysMap[d].slots[t].push(session);
@@ -386,25 +387,25 @@ function renderSchedule() {
 
         html += `<div class="day-col">
             <h3>${escapeHTML(dayData.name)}</h3>`;
-            
+
         // Smart sort for times based on AM/PM (e.g. 10:00 AM before 12:00 PM before 02:00 PM)
         const times = Object.keys(dayData.slots).sort((a, b) => {
             return parseTimeToMinutes(a) - parseTimeToMinutes(b);
         });
-        
+
         times.forEach(time => {
             html += `<div class="time-slot">
                 <div class="time-slot-header">${escapeHTML(time)}</div>`;
-                
+
             dayData.slots[time].forEach(session => {
                 const pref = getPref(session.guid);
-                
+
                 // Show who is going / interested right on the card
                 let attendeeHtml = '';
                 if (pref.team) {
                     const goingMems = Object.keys(pref.team).filter(m => pref.team[m]?.going);
                     const interMems = Object.keys(pref.team).filter(m => pref.team[m]?.interesting);
-                    
+
                     if (goingMems.length) attendeeHtml += `<div>✅ Going: ${escapeHTML(goingMems.join(', '))}</div>`;
                     if (interMems.length) attendeeHtml += `<div>⭐ Interested: ${escapeHTML(interMems.join(', '))}</div>`;
                 }
@@ -438,14 +439,14 @@ function renderSchedule() {
 // ---------------------------
 // INTERACTIONS & HELPERS
 // ---------------------------
-window.switchTab = function(tab) {
+window.switchTab = function (tab) {
     currentTab = tab;
     document.getElementById('tab-sessions').classList.toggle('active', tab === 'sessions');
     document.getElementById('tab-schedule').classList.toggle('active', tab === 'schedule');
     renderView();
 };
 
-window.toggleTheme = function() {
+window.toggleTheme = function () {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('slateTheme', currentTheme);
     initTheme();
@@ -459,7 +460,7 @@ function initTheme() {
     }
 }
 
-window.toggleMemberPref = function(guid, member, type) {
+window.toggleMemberPref = function (guid, member, type) {
     const pref = getPref(guid);
     if (!pref.team[member]) {
         pref.team[member] = { interesting: false, going: false };
@@ -467,21 +468,21 @@ window.toggleMemberPref = function(guid, member, type) {
     const currentVal = pref.team[member][type];
     pref.team[member][type] = !currentVal;
     saveStateAndSync();
-    renderView(); 
+    renderView();
 };
 
-window.updateNotes = function(guid, val) {
+window.updateNotes = function (guid, val) {
     const pref = getPref(guid);
     pref.notes = val;
     saveStateAndSync();
 };
 
-window.generateTeamCode = function() {
+window.generateTeamCode = function () {
     const code = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
     document.getElementById('team-code-input').value = code;
 };
 
-window.toggleSettings = function() {
+window.toggleSettings = function () {
     const panel = document.getElementById('settings-panel');
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) {
@@ -490,7 +491,7 @@ window.toggleSettings = function() {
     }
 };
 
-window.saveSettings = function() {
+window.saveSettings = function () {
     const val = document.getElementById('team-members-input').value;
     const names = val.split('\n').map(n => n.trim()).filter(n => n.length > 0);
     if (names.length) {
@@ -504,7 +505,7 @@ window.saveSettings = function() {
     state.settings.teamCode = newCode;
 
     saveStateAndSync();
-    
+
     if (prevCode !== newCode) {
         connectToTeamCode();
     }
@@ -521,7 +522,7 @@ function updateFilterDropdowns() {
     state.settings.teamMembers.forEach(m => {
         opts += `<option value="${escapeHTML(m)}">Member: ${escapeHTML(m)}</option>`;
     });
-    
+
     // Retain selection if possible
     const currentVal = select.value;
     select.innerHTML = opts;
@@ -565,7 +566,7 @@ function parseTimeToMinutes(timeStr) {
     if (!timeStr) return 0;
     const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
     if (!match) return 0;
-    
+
     let hours = parseInt(match[1], 10);
     const mins = parseInt(match[2], 10);
     const ampm = match[3].toUpperCase();
