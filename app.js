@@ -240,7 +240,7 @@ function renderSessions() {
     filtered.sort((a, b) => {
         const dayA = a.Day || 'Day 1';
         const dayB = b.Day || 'Day 1';
-        if (dayA !== dayB) return dayA.localeCompare(dayB);
+        if (dayA !== dayB) return getDaySortWeight(dayA) - getDaySortWeight(dayB);
         const timeA = parseTimeToMinutes(a.Time);
         const timeB = parseTimeToMinutes(b.Time);
         return timeA - timeB;
@@ -382,7 +382,9 @@ function renderSchedule() {
 
     let html = '<div class="schedule-grid">';
 
-    Object.keys(daysMap).forEach(dayKey => {
+    const sortedDays = Object.keys(daysMap).sort((a, b) => getDaySortWeight(a) - getDaySortWeight(b));
+
+    sortedDays.forEach(dayKey => {
         const dayData = daysMap[dayKey];
         if (!Object.keys(dayData.slots).length) return; // Hide empty days
 
@@ -534,7 +536,7 @@ function updateFilterDropdowns() {
     // Days dropdown
     const daysSelect = document.getElementById('filter-day');
     if (daysSelect && sessionsData.length > 0) {
-        const uniqueDays = [...new Set(sessionsData.map(s => s.Day || 'Day 1'))].sort();
+        const uniqueDays = [...new Set(sessionsData.map(s => s.Day || 'Day 1'))].sort((a, b) => getDaySortWeight(a) - getDaySortWeight(b));
         let daysOpts = '<option value="all">All Days</option>';
         uniqueDays.forEach(d => {
             daysOpts += `<option value="${escapeHTML(d)}">${escapeHTML(getActualDate(d))}</option>`;
@@ -576,6 +578,22 @@ function parseTimeToMinutes(timeStr) {
     if (ampm === 'AM' && hours === 12) hours = 0;
 
     return hours * 60 + mins;
+}
+
+function getDaySortWeight(dayStr) {
+    if (!dayStr) return 99;
+    const lower = dayStr.toLowerCase();
+    if (lower.includes('monday')) return 1;
+    if (lower.includes('tuesday')) return 2;
+    if (lower.includes('wednesday')) return 3;
+    if (lower.includes('thursday')) return 4;
+    if (lower.includes('friday')) return 5;
+    if (lower.includes('saturday')) return 6;
+    if (lower.includes('sunday')) return 0;
+    if (lower.includes('day 1')) return 10;
+    if (lower.includes('day 2')) return 11;
+    if (lower.includes('day 3')) return 12;
+    return 99;
 }
 
 // Map "Day 1", "Day 2", etc., to specific dates if not provided by feed
