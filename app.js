@@ -195,11 +195,12 @@ function getFilteredSessions() {
             if (sType !== typeFilter) return false;
         }
 
-        const pref = state.preferences[session.guid] || { team: {} };
+        const pref = state.preferences[session.guid] || {};
+        const teamObj = pref.team || {};
 
         // Helper to check what a specific member has saved
         const checkMember = (memName) => {
-            const m = pref.team[memName];
+            const m = teamObj[memName];
             if (!m) return false;
             if (statusFilter === 'all') return (m.going || m.interesting);
             if (statusFilter === 'going') return m.going;
@@ -211,11 +212,11 @@ function getFilteredSessions() {
             if (statusFilter === 'all') {
                 return true; // Unfiltered
             } else {
-                return Object.keys(pref.team).some(m => checkMember(m));
+                return Object.keys(teamObj).some(m => checkMember(m));
             }
         }
         else if (memberFilter === 'any_saved') {
-            return Object.keys(pref.team).some(m => checkMember(m));
+            return Object.keys(teamObj).some(m => checkMember(m));
         }
         else {
             return checkMember(memberFilter);
