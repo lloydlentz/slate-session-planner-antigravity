@@ -18,6 +18,7 @@
             <p class="subtitle">Plan attendance, assign members, and leave notes for your team.</p>
         </div>
         <div class="header-actions">
+            <span id="sync-status" class="sync-indicator offline">☁️ Offline</span>
             <button class="btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">☀️</button>
             <!-- Settings toggle -->
             <button class="btn btn-primary" onclick="toggleSettings()">⚙️ Team Settings</button>
@@ -28,8 +29,20 @@
         <div id="settings-panel" class="settings-panel hidden">
             <div class="settings-content">
                 <h3>Team Settings</h3>
-                <p>Enter team members (one per line). Default is Lloyd, Kathryn, Tom.</p>
-                <textarea id="team-members-input" class="form-control" rows="4"></textarea>
+                <div class="form-group">
+                    <label>Team Sync Code (Optional)</label>
+                    <p class="text-secondary" style="margin-bottom: 0.5rem; font-size: 0.9rem;">Share this code with your team to sync session preferences in real time.</p>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="team-code-input" class="form-control" placeholder="Enter or generate a team code" style="margin-bottom: 0;">
+                        <button class="btn" onclick="generateTeamCode()">Generate Code</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Team Members</label>
+                    <p class="text-secondary" style="margin-bottom: 0.5rem; font-size: 0.9rem;">Enter team members (one per line). Default is Lloyd, Kathryn, Austin.</p>
+                    <textarea id="team-members-input" class="form-control" rows="4"></textarea>
+                </div>
                 <div class="settings-actions">
                     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
                     <button class="btn" onclick="toggleSettings()">Cancel</button>
@@ -87,6 +100,6 @@
     </main>
 
     <!-- JS -->
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

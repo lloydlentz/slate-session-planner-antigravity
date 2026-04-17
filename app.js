@@ -1,9 +1,33 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+
 const ENDPOINT_URL = "https://slate-partners.technolutions.net/manage/query/run?id=8b7142c2-6c70-4109-9eeb-74d2494ba7c8&cmd=service&output=json&h=b0203357-4804-4c5d-8213-9e376263af44";
 const STORAGE_KEY = 'slateSessionPlannerData';
 
+// ====== FIREBASE CONFIGURATION ======
+// Fill in your Firebase config here after creating a Firebase project.
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abcdef123456"
+};
+
+const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let app, database;
+
+if (isFirebaseConfigured) {
+    app = initializeApp(firebaseConfig);
+    database = getDatabase(app);
+}
+
 let state = {
     settings: {
-        teamMembers: ['Lloyd', 'Kathryn', 'Austin']
+        teamMembers: ['Lloyd', 'Kathryn', 'Austin'],
+        teamCode: ''
     },
     preferences: {},
     ui: {
@@ -19,6 +43,7 @@ let expandedSessions = new Set();
 async function init() {
     initTheme();
     loadState();
+    connectToTeamCode();
     await fetchSessions();
     updateFilterDropdowns();
     renderView();
@@ -60,6 +85,49 @@ function loadState() {
 
 function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function saveStateAndSync() {
+    saveState();
+    const code = state.settings.teamCode;
+    if (code && isFirebaseConfigured) {
+        const dbRef = ref(database, `teams/${code}/preferences`);
+        set(dbRef, state.preferences).catch(console.error);
+    }
+}
+
+let unsubscribeFromTeam = null;
+
+function connectToTeamCode() {
+    const code = state.settings.teamCode;
+    const syncStatus = document.getElementById('sync-status');
+    
+    if (unsubscribeFromTeam) {
+        unsubscribeFromTeam();
+        unsubscribeFromTeam = null;
+    }
+
+    if (!code || !isFirebaseConfigured) {
+        if (!isFirebaseConfigured && code) {
+             console.warn("Firebase not configured. Using local storage only.");
+        }
+        syncStatus.className = 'sync-indicator offline';
+        syncStatus.innerHTML = '☁️ Offline';
+        return;
+    }
+    
+    syncStatus.className = 'sync-indicator online';
+    syncStatus.innerHTML = `☁️ Synced: ${escapeHTML(code)}`;
+    
+    const dbRef = ref(database, `teams/${code}/preferences`);
+    unsubscribeFromTeam = onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            state.preferences = data;
+            saveState(); // update local storage cache too
+            renderView();
+        }
+    });
 }
 
 function getPref(guid) {
@@ -166,88 +234,108 @@ function renderSessions() {
         return;
     }
 
-    // Group by Type
-    const grouped = {};
-    filtered.forEach(session => {
-        const t = session.Type || 'Other Sessions';
-        if (!grouped[t]) grouped[t] = [];
-        grouped[t].push(session);
+    // Sort by Day, then Time
+    filtered.sort((a, b) => {
+        const dayA = a.Day || 'Day 1';
+        const dayB = b.Day || 'Day 1';
+        if (dayA !== dayB) return dayA.localeCompare(dayB);
+        const timeA = parseTimeToMinutes(a.Time);
+        const timeB = parseTimeToMinutes(b.Time);
+        return timeA - timeB;
     });
-    
-    const types = Object.keys(grouped).sort();
+
     let html = '';
+    let currentDay = null;
+    let currentTime = null;
 
-    types.forEach(type => {
-        html += `<div class="type-group">
-            <h2 class="type-header">${escapeHTML(type)}</h2>
+    filtered.forEach(session => {
+        const sDay = session.Day || 'Day 1';
+        const sTime = session.Time || 'TBA';
+        const sDate = getActualDate(sDay, session.Date);
+
+        if (sDay !== currentDay) {
+            if (currentDay !== null) {
+                html += '</div></div>'; // Close previous sessions-table and day-group
+            }
+            html += `<div class="day-group">
+                <h2 class="day-header">${escapeHTML(sDate)}</h2>`;
+            currentDay = sDay;
+            currentTime = null; // Reset time so we output a time header
+        }
+
+        if (sTime !== currentTime) {
+            if (currentTime !== null) {
+                html += '</div>'; // Close previous sessions-table
+            }
+            html += `<h3 class="time-header">${escapeHTML(sTime)}</h3>
             <div class="sessions-table">`;
-        
-        grouped[type].forEach(session => {
-            const pref = getPref(session.guid);
-            const isExpanded = expandedSessions.has(session.guid);
-            const jsEscapedGuid = escapeJSString(session.guid);
-            const safeGuid = escapeHTML(session.guid);
-            const safeTitle = escapeHTML(session.Title || 'Untitled');
-            const expandAriaLabel = escapeHTML(`Toggle details for ${session.Title || 'Untitled'}`);
+            currentTime = sTime;
+        }
 
-            // Build compact team controls
-            let teamHtml = '<div class="team-inline-controls">';
-            state.settings.teamMembers.forEach(member => {
-                const memPref = pref.team[member] || { interesting: false, going: false };
-                const jsEscapedMember = escapeJSString(member);
-                teamHtml += `
-                    <div class="member-inline-row">
-                        <span class="member-inline-name">${escapeHTML(member)}</span>
-                        <div class="toggle-group-inline">
-                            <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}" title="Toggle interested for ${escapeHTML(member)}">
-                                <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'interesting')">
-                                ⭐
-                            </label>
-                            <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}" title="Toggle going for ${escapeHTML(member)}">
-                                <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'going')">
-                                ✅
-                            </label>
-                        </div>
-                    </div>
-                `;
-            });
-            teamHtml += '</div>';
+        const pref = getPref(session.guid);
+        const isExpanded = expandedSessions.has(session.guid);
+        const jsEscapedGuid = escapeJSString(session.guid);
+        const safeGuid = escapeHTML(session.guid);
+        const safeTitle = escapeHTML(session.Title || 'Untitled');
+        const expandAriaLabel = escapeHTML(`Toggle details for ${session.Title || 'Untitled'}`);
 
-            const actualDate = getActualDate(session.Day, session.Date);
-
-            html += `
-                <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${safeGuid}">
-                    <div class="session-row-main">
-                        <button class="session-expand-btn" onclick="toggleSessionExpand('${jsEscapedGuid}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${expandAriaLabel}">
-                            ${isExpanded ? '▼' : '▶'}
-                        </button>
-                        <div class="session-row-summary">
-                            <h3 class="session-title condensed">${safeTitle}</h3>
-                            <div class="session-meta condensed">
-                                <span class="meta-badge">🗓️ ${escapeHTML(actualDate)} ${escapeHTML(session.Time || '')}</span>
-                                ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
-                            </div>
-                        </div>
-                        ${teamHtml}
-                    </div>
-                    <div class="session-row-details ${isExpanded ? '' : 'hidden'}">
-                        ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
-                        <div class="session-description">
-                            ${escapeHTML(session.Description || 'No description available.').trim()}
-                        </div>
-                        <div class="form-group">
-                            <label for="notes-${safeGuid}">Team Notes</label>
-                            <textarea id="notes-${safeGuid}" class="form-control" 
-                                placeholder="Thoughts? Questions?" 
-                                oninput="updateNotes('${jsEscapedGuid}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
-                        </div>
+        // Build compact team controls
+        let teamHtml = '<div class="team-inline-controls">';
+        state.settings.teamMembers.forEach(member => {
+            const memPref = pref.team[member] || { interesting: false, going: false };
+            const jsEscapedMember = escapeJSString(member);
+            teamHtml += `
+                <div class="member-inline-row">
+                    <span class="member-inline-name">${escapeHTML(member)}</span>
+                    <div class="toggle-group-inline">
+                        <label class="btn-toggle-small ${memPref.interesting ? 'active interesting' : ''}" title="Toggle interested for ${escapeHTML(member)}">
+                            <input type="checkbox" class="hidden" ${memPref.interesting ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'interesting')">
+                            ⭐
+                        </label>
+                        <label class="btn-toggle-small ${memPref.going ? 'active going' : ''}" title="Toggle going for ${escapeHTML(member)}">
+                            <input type="checkbox" class="hidden" ${memPref.going ? 'checked' : ''} onchange="toggleMemberPref('${jsEscapedGuid}', '${jsEscapedMember}', 'going')">
+                            ✅
+                        </label>
                     </div>
                 </div>
             `;
         });
-        
-        html += `</div></div>`;
+        teamHtml += '</div>';
+
+        html += `
+            <div class="session-row-card ${isExpanded ? 'expanded' : ''}" data-guid="${safeGuid}">
+                <div class="session-row-main">
+                    <button class="session-expand-btn" onclick="toggleSessionExpand('${jsEscapedGuid}')" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${expandAriaLabel}">
+                        ${isExpanded ? '▼' : '▶'}
+                    </button>
+                    <div class="session-row-summary">
+                        <h3 class="session-title condensed">${safeTitle}</h3>
+                        <div class="session-meta condensed">
+                            <span class="meta-badge">🏷️ ${escapeHTML(session.Type || 'Other Sessions')}</span>
+                            ${session.Location ? `<span class="meta-badge">📍 ${escapeHTML(session.Location)}</span>` : ''}
+                        </div>
+                    </div>
+                    ${teamHtml}
+                </div>
+                <div class="session-row-details ${isExpanded ? '' : 'hidden'}">
+                    ${session.Speakers ? `<div class="session-speakers">🗣️ ${escapeHTML(session.Speakers)}</div>` : ''}
+                    <div class="session-description">
+                        ${escapeHTML(session.Description || 'No description available.').trim()}
+                    </div>
+                    <div class="form-group">
+                        <label for="notes-${safeGuid}">Team Notes</label>
+                        <textarea id="notes-${safeGuid}" class="form-control" 
+                            placeholder="Thoughts? Questions?" 
+                            oninput="updateNotes('${jsEscapedGuid}', this.value)">${escapeHTML(pref.notes || '')}</textarea>
+                    </div>
+                </div>
+            </div>
+        `;
     });
+    
+    if (currentDay !== null) {
+        html += `</div></div>`; // Close the last day-group
+    }
     
     container.innerHTML = html;
 }
@@ -378,14 +466,19 @@ window.toggleMemberPref = function(guid, member, type) {
     }
     const currentVal = pref.team[member][type];
     pref.team[member][type] = !currentVal;
-    saveState();
+    saveStateAndSync();
     renderView(); 
 };
 
 window.updateNotes = function(guid, val) {
     const pref = getPref(guid);
     pref.notes = val;
-    saveState();
+    saveStateAndSync();
+};
+
+window.generateTeamCode = function() {
+    const code = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    document.getElementById('team-code-input').value = code;
 };
 
 window.toggleSettings = function() {
@@ -393,6 +486,7 @@ window.toggleSettings = function() {
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) {
         document.getElementById('team-members-input').value = state.settings.teamMembers.join('\n');
+        document.getElementById('team-code-input').value = state.settings.teamCode || '';
     }
 };
 
@@ -404,7 +498,17 @@ window.saveSettings = function() {
     } else {
         state.settings.teamMembers = ['Lloyd', 'Kathryn', 'Austin']; // default fallback
     }
-    saveState();
+
+    const prevCode = state.settings.teamCode;
+    const newCode = document.getElementById('team-code-input').value.trim().toUpperCase();
+    state.settings.teamCode = newCode;
+
+    saveStateAndSync();
+    
+    if (prevCode !== newCode) {
+        connectToTeamCode();
+    }
+
     updateFilterDropdowns();
     renderView();
     toggleSettings();
